@@ -9,6 +9,7 @@ import bottle
 import yaml
 from bottle import Bottle, request, response, run
 from bottle_swagger import SwaggerPlugin
+from transformers import pipeline
 
 #
 # START INIT
@@ -57,13 +58,21 @@ def allow_cors(opts):
 
     return decorator
 
+model_path = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+sentiment_task = pipeline("sentiment-analysis", model=model_path, tokenizer=model_path)
+
 #
 # END INIT
 #
 
 
 def analyze(comments: List[str]) -> List[float]:
-    return [random.random() for _ in comments]
+    results = sentiment_task(comments)
+    results = [(res["label"], res["score"]) for res in results]
+    results = [(label, -likelihood if label == "Negative" else likelihood) for (label, likelihood) in results]
+    results = [(label, 0 if label == "Neutral" else likelihood) for (label, likelihood) in results]
+    results = [likelihood for (label, likelihood) in results]
+    return results
 
 
 @app.route("/analyze", method=["POST", "OPTIONS"])
